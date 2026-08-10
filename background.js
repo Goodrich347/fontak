@@ -195,6 +195,24 @@ function findRule(rules, rawUrl) {
   ) || null;
 }
 
+function contentSettings(settings) {
+  return {
+    protectIcons: Boolean(settings.protectIcons),
+    protectCode: Boolean(settings.protectCode),
+    arabicScriptOnly: Boolean(settings.arabicScriptOnly),
+    forceRtl: Boolean(settings.forceRtl)
+  };
+}
+
+function isTrustedExtensionPage(sender) {
+  try {
+    const url = new URL(sender?.url || "");
+    return url.protocol === "chrome-extension:" && url.hostname === chrome.runtime.id;
+  } catch (_) {
+    return false;
+  }
+}
+
 async function getPayload(sender) {
   const settings = await chrome.storage.local.get({
     enabled: true,
@@ -207,17 +225,18 @@ async function getPayload(sender) {
     forceRtl: false
   });
 
-  if (!settings.enabled) return { enabled: false, settings };
+  const safeSettings = contentSettings(settings);
+  if (!settings.enabled) return { enabled: false, settings: safeSettings };
 
   const topLevelUrl = sender.tab?.url || sender.url;
   const rule = findRule(settings.siteRules, topLevelUrl);
-  if (!rule) return { enabled: false, settings };
+  if (!rule) return { enabled: false, settings: safeSettings };
 
   const normalizedPage = normalizePageUrl(topLevelUrl);
   const originGranted = normalizedPage && await chrome.permissions.contains({
     origins: [originPattern(new URL(normalizedPage).origin)]
   });
-  if (!originGranted) return { enabled: false, settings, rule };
+  if (!originGranted) return { enabled: false, settings: safeSettings };
 
   if (cachedLibraryRevision !== settings.fontLibraryRevision) {
     fontCache.clear();
@@ -226,18 +245,17 @@ async function getPayload(sender) {
 
   const fontMeta = settings.fonts.find((font) => font.id === rule.fontId);
   if (!fontMeta) {
-    return { enabled: false, settings, rule, error: "FONT_META_NOT_FOUND" };
+    return { enabled: false, settings: safeSettings, error: "FONT_META_NOT_FOUND" };
   }
 
   const font = await readFont(rule.fontId);
   if (!font?.dataUrl) {
-    return { enabled: false, settings, rule, error: "FONT_DATA_NOT_FOUND" };
+    return { enabled: false, settings: safeSettings, error: "FONT_DATA_NOT_FOUND" };
   }
 
   return {
     enabled: true,
-    settings,
-    rule,
+    settings: safeSettings,
     font: {
       id: font.id,
       dataUrl: font.dataUrl,
@@ -248,6 +266,17 @@ async function getPayload(sender) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  const privilegedMessage = [
+    "FONTAK_ENABLE_ORIGIN",
+    "FONTAK_DISABLE_ORIGIN",
+    "FONTAK_SYNC_RULE_ORIGINS"
+  ].includes(message?.type);
+
+  if (privilegedMessage && !isTrustedExtensionPage(sender)) {
+    sendResponse({ ok: false, error: "UNTRUSTED_SENDER" });
+    return false;
+  }
+
   if (message?.type === "FONTAK_ENABLE_ORIGIN") {
     enableOrigin(message.origin, message.tabId)
       .then(() => sendResponse({ ok: true }))

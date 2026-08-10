@@ -540,6 +540,16 @@ button {
   font-size: 16px;
 }
 
+.builtin-label {
+  padding: 4px 7px;
+  border: 1px solid #d7e3dd;
+  border-radius: 999px;
+  background: #edf6f1;
+  color: #276348;
+  font-size: 8px;
+  font-weight: 700;
+}
+
 .empty-message {
   padding: 32px 24px;
   border: 1px dashed #d7d1c5;

@@ -4,6 +4,17 @@ const STORE_NAME = "fonts";
 const LEGACY_FONT_KEY = "active-font";
 const MAX_FONT_SIZE = 10 * 1024 * 1024;
 const ALL_SITE_PATTERNS = ["https://*/*", "http://*/*"];
+const BUILTIN_FONT_ID = "fontak-vazirmatn";
+const BUILTIN_FONT_PATH = "assets/Vazirmatn-Regular.woff2";
+const BUILTIN_FONT_META = {
+  id: BUILTIN_FONT_ID,
+  name: "وزیرمتن",
+  fileName: "Vazirmatn-Regular.woff2",
+  size: 50684,
+  format: "woff2",
+  updatedAt: 0,
+  builtIn: true
+};
 
 const FONT_TYPES = {
   woff2: { mime: "font/woff2", format: "woff2" },
@@ -213,6 +224,41 @@ async function migrateLegacyFont() {
   await chrome.storage.local.remove(["fontMeta", "fontRevision"]);
 }
 
+async function ensureBuiltinFont() {
+  const saved = await chrome.storage.local.get({
+    fonts: [],
+    defaultFontId: null,
+    fontLibraryRevision: 0
+  });
+  const existingRecord = await getFontRecord(BUILTIN_FONT_ID);
+
+  if (!existingRecord?.dataUrl) {
+    const response = await fetch(chrome.runtime.getURL(BUILTIN_FONT_PATH));
+    if (!response.ok) throw new Error("Bundled Vazirmatn font is unavailable");
+    const blob = await response.blob();
+    const dataUrl = await readAsDataUrl(blob);
+    await putFontRecord({ ...BUILTIN_FONT_META, size: blob.size, dataUrl });
+  }
+
+  const existingMeta = saved.fonts.find((font) => font.id === BUILTIN_FONT_ID);
+  const fonts = existingMeta
+    ? saved.fonts.map((font) => font.id === BUILTIN_FONT_ID
+      ? { ...font, ...BUILTIN_FONT_META, builtIn: true }
+      : font)
+    : [BUILTIN_FONT_META, ...saved.fonts];
+  const defaultFontId = saved.defaultFontId || BUILTIN_FONT_ID;
+  const metadataChanged = !existingMeta || !existingMeta.builtIn;
+  const defaultChanged = defaultFontId !== saved.defaultFontId;
+
+  if (metadataChanged || defaultChanged || !existingRecord?.dataUrl) {
+    await chrome.storage.local.set({
+      fonts,
+      defaultFontId,
+      fontLibraryRevision: Date.now()
+    });
+  }
+}
+
 async function loadState() {
   state = await chrome.storage.local.get({
     enabled: true,
@@ -337,15 +383,22 @@ function renderFonts() {
     info.textContent = `${formatBytes(font.size)} · ${toPersianNumber(usageCount)} آدرس`;
     copy.append(name, info);
 
-    const remove = document.createElement("button");
-    remove.className = "item-action";
-    remove.type = "button";
-    remove.dataset.deleteFont = font.id;
-    remove.title = "حذف فونت";
-    remove.setAttribute("aria-label", `حذف ${font.name}`);
-    remove.textContent = "×";
+    let action;
+    if (font.builtIn) {
+      action = document.createElement("span");
+      action.className = "builtin-label";
+      action.textContent = "داخلی";
+    } else {
+      action = document.createElement("button");
+      action.className = "item-action";
+      action.type = "button";
+      action.dataset.deleteFont = font.id;
+      action.title = "حذف فونت";
+      action.setAttribute("aria-label", `حذف ${font.name}`);
+      action.textContent = "×";
+    }
 
-    item.append(glyph, copy, remove);
+    item.append(glyph, copy, action);
     elements.fontList.append(item);
     previewObserver.observe(glyph);
   }
@@ -543,7 +596,7 @@ async function removeRule(ruleId) {
 
 async function removeFont(fontId) {
   const font = state.fonts.find((item) => item.id === fontId);
-  if (!font) return;
+  if (!font || font.builtIn) return;
   const usageCount = state.siteRules.filter((rule) => rule.fontId === fontId).length;
   const warning = usageCount
     ? `این فونت روی ${toPersianNumber(usageCount)} آدرس فعال است. فونت و آن قوانین حذف شوند؟`
@@ -677,6 +730,7 @@ for (const [element, key] of [
 
 async function initialize() {
   await migrateLegacyFont();
+  await ensureBuiltinFont();
   await Promise.all([loadState(), loadCurrentPage(), loadAllSitesAccess()]);
   render();
 }

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "فونتک — فونت دلخواه برای هر سایت",
   "short_name": "فونتک",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "minimum_chrome_version": "119",
   "description": "کتابخانه فونت شخصی با انتخاب جداگانه فونت برای هر سایت یا صفحه.",
   "permissions": [
@@ -17,6 +17,9 @@
   ],
   "background": {
     "service_worker": "background.js"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
   },
   "icons": {
     "16": "icons/icon-16.png",
