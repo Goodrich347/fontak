@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>فونتک</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div class="brand-mark" aria-hidden="true">
+          <span>ف</span>
+          <i></i>
+        </div>
+        <div class="brand-copy">
+          <h1>فونتک</h1>
+          <p>هر سایت، با فونت خودش</p>
+        </div>
+        <label class="master-switch" title="توقف یا اجرای همه قوانین">
+          <input id="enabled" type="checkbox" />
+          <span></span>
+        </label>
+      </header>
+
+      <nav class="tabs" aria-label="بخش‌های افزونه">
+        <button class="tab-button active" data-tab="site" type="button">این سایت</button>
+        <button class="tab-button" data-tab="fonts" type="button">
+          فونت‌ها <b id="fontCount">۰</b>
+        </button>
+        <button class="tab-button" data-tab="rules" type="button">
+          آدرس‌ها <b id="ruleCount">۰</b>
+        </button>
+      </nav>
+
+      <section id="sitePanel" class="tab-panel active" data-panel="site">
+        <div id="restrictedSite" class="empty-message" hidden>
+          <span>×</span>
+          <strong>این صفحه قابل تغییر نیست</strong>
+          <p>Chrome اجازه اجرای افزونه روی صفحه‌های داخلی و فروشگاه را نمی‌دهد.</p>
+        </div>
+
+        <div id="currentSiteContent">
+          <section class="site-card">
+            <div class="site-heading">
+              <span id="siteInitial" class="site-initial">و</span>
+              <div>
+                <small>آدرس فعلی</small>
+                <strong id="siteHost">—</strong>
+                <p id="sitePath">—</p>
+              </div>
+              <span id="siteBadge" class="badge">غیرفعال</span>
+            </div>
+
+            <label class="field">
+              <span>فونت این آدرس</span>
+              <select id="siteFont"></select>
+            </label>
+
+            <fieldset class="scope-field">
+              <legend>محدوده اجرا</legend>
+              <div class="segmented">
+                <label>
+                  <input id="scopeSite" name="scope" type="radio" value="site" checked />
+                  <span>کل سایت</span>
+                </label>
+                <label>
+                  <input id="scopePage" name="scope" type="radio" value="page" />
+                  <span>فقط این صفحه</span>
+                </label>
+              </div>
+            </fieldset>
+
+            <p id="sitePreview" class="site-preview">سلام دنیا! فونتک اینجاست.</p>
+
+            <div class="site-actions">
+              <button id="saveSite" class="primary-button" type="button">فعال‌کردن برای این سایت</button>
+              <button id="removeSite" class="secondary-button danger" type="button" hidden>حذف قانون</button>
+            </div>
+          </section>
+
+          <section class="settings-card">
+            <label>
+              <span>
+                <strong>فقط خط فارسی، عربی و اردو</strong>
+                <small>فونت زبان‌های دیگر حفظ می‌شود</small>
+              </span>
+              <input id="arabicScriptOnly" type="checkbox" />
+            </label>
+            <label>
+              <span>
+                <strong>راست‌به‌چپ کردن صفحه</strong>
+                <small>جهت صفحه‌های ذخیره‌شده را RTL می‌کند</small>
+              </span>
+              <input id="forceRtl" type="checkbox" />
+            </label>
+            <label>
+              <span>
+                <strong>دسترسی یک‌باره به همه سایت‌ها</strong>
+                <small>دیگر برای هر سایت جداگانه اجازه نمی‌پرسد</small>
+              </span>
+              <input id="allSitesAccess" type="checkbox" />
+            </label>
+            <details>
+              <summary>تنظیمات بیشتر</summary>
+              <label>
+                <span><strong>حفاظت از آیکون‌ها</strong></span>
+                <input id="protectIcons" type="checkbox" />
+              </label>
+              <label>
+                <span><strong>حفظ فونت کدها</strong></span>
+                <input id="protectCode" type="checkbox" />
+              </label>
+            </details>
+          </section>
+        </div>
+      </section>
+
+      <section id="fontsPanel" class="tab-panel" data-panel="fonts">
+        <div class="panel-heading">
+          <div>
+            <h2>کتابخانه فونت</h2>
+            <p>هر تعداد فونت که خواستی اضافه کن.</p>
+          </div>
+          <button id="pickFont" class="add-button" type="button">+ افزودن فونت</button>
+          <input id="fontFile" type="file" accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf" multiple hidden />
+        </div>
+        <div id="fontList" class="item-list"></div>
+        <div id="emptyFonts" class="empty-message compact">
+          <span>آ</span>
+          <strong>هنوز فونتی اینجا نیست</strong>
+          <p>فرمت‌های WOFF2، WOFF، TTF و OTF تا حجم ۱۰ مگابایت پشتیبانی می‌شوند.</p>
+        </div>
+      </section>
+
+      <section id="rulesPanel" class="tab-panel" data-panel="rules">
+        <div class="panel-heading">
+          <div>
+            <h2>آدرس‌های ذخیره‌شده</h2>
+            <p>افزونه فقط روی همین فهرست اجرا می‌شود.</p>
+          </div>
+        </div>
+        <div id="ruleList" class="item-list"></div>
+        <div id="emptyRules" class="empty-message compact">
+          <span>◎</span>
+          <strong>هنوز سایتی اضافه نشده</strong>
+          <p>به تب «این سایت» برو و برای صفحه فعلی یک فونت انتخاب کن.</p>
+        </div>
+      </section>
+
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
