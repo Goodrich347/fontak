@@ -80,3 +80,8 @@
 ## مجوز فونت رابط
 
 رابط فونتک از [Vazirmatn](https://github.com/rastikerdar/vazirmatn) نسخه `33.003` استفاده می‌کند. این فونت تحت SIL Open Font License 1.1 منتشر شده و متن کامل مجوز در `assets/Vazirmatn-OFL.txt` قرار دارد.
+
+## مجوز
+
+پروژه فونتک تحت [MIT License](LICENSE) منتشر شده است — کپی‌رایت ۲۰۲۶ Goodrich347. استفاده، کپی و تغییر آزاد است به شرط حفظ متن مجوز.
+
