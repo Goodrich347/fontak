@@ -168,6 +168,12 @@ async function reconcileRuleOrigins() {
   }
 }
 
+function restoreRuleOrigins() {
+  return reconcileRuleOrigins().catch((error) => {
+    console.warn("Fontak: could not restore saved site rules.", error);
+  });
+}
+
 async function disableOrigin(origin) {
   await unregisterOrigin(origin);
   const allSitesGranted = await chrome.permissions.contains({
@@ -324,4 +330,9 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     cachedLibraryRevision = null;
     fontCache.clear();
   }
+});
+
+chrome.runtime.onStartup.addListener(restoreRuleOrigins);
+chrome.runtime.onInstalled.addListener((details) => {
+  if (["install", "update"].includes(details.reason)) restoreRuleOrigins();
 });

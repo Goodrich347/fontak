@@ -2,7 +2,8 @@
   "manifest_version": 3,
   "name": "فونتک — فونت دلخواه برای هر سایت",
   "short_name": "فونتک",
-  "version": "2.4.0",
+  "version": "2.5.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvNCNnXv1dMgfZU+fxtd84E7W2xh0P0+8Uq9P9P34OeLJlBkVXY6bAOE1MvtMemB2egCFegGS7/UXTQFfMXoMqEJuv71Ly+hyCYnN05LScu+eGFh2l46aYrjIFl/IY4MEntYC3UmTaJoQhtxORqEo5bFFhqUmZ75/A94/HKaWNRkLclzaZD69R10Gw2+7978m1JGzW82O1IJb7ci1gpp6sIXucMuOwHRKrJVlMoQKL/dCX4b6i0Wl9qbsTZ0RYbBfgB5ki62Fmk/zUwRNj28zh5MlTTsVSd2/VV1f+RK1XQWhIjP7Pt5ISIzlzgAT98jUdkD6H1l/CUQlTRfdCtIraQIDAQAB",
   "minimum_chrome_version": "119",
   "description": "کتابخانه فونت شخصی با انتخاب جداگانه فونت برای هر سایت یا صفحه.",
   "permissions": [
