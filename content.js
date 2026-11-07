@@ -156,6 +156,11 @@ ${marker} {
   font-family: "${FONT_FAMILY}", ${fallback} !important;
 }
 
+${marker} :is([contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"]),
+${marker} :is([contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"]) *${exclusions} {
+  font-family: "${FONT_FAMILY}", ${fallback} !important;
+}
+
 ${marker}::before,
 ${marker}::after,
 input${marker}::placeholder,
@@ -301,9 +306,57 @@ ${scopedSelector("[contenteditable='plaintext-only']")}${editorSelectors ? `,\n$
     element.removeAttribute(READY_ATTRIBUTE);
   }
 
+  // Topmost element of a rich-text editor (contenteditable host).
+  function editingHost(element) {
+    if (!element.isContentEditable) return null;
+    let host = element;
+    while (host.parentElement?.isContentEditable) host = host.parentElement;
+    return host;
+  }
+
+  // Rich editors (ProseMirror in Google Flow, Slate, Lexical, ...) own every
+  // node inside the editable area and revert foreign attribute/style changes,
+  // which re-renders the node and loses the font. Never touch nodes inside an
+  // editor: mark the editor's non-editable parent instead; CSS then styles
+  // the whole editable subtree and the original font is inherited through the
+  // custom property.
+  function syncEditor(host) {
+    const anchor = host.parentElement;
+    if (!isHTMLElement(anchor) || isExcludedElement(host)) return;
+    // Cheap path for every keystroke/node: once the editor is marked, keep it.
+    // The font only covers Arabic-script code points (unicode-range), so a
+    // stale marker on an editor without Persian text changes nothing.
+    if (
+      preparedElements.has(anchor) &&
+      (anchor.hasAttribute(READY_ATTRIBUTE) || inlineElements.has(anchor))
+    ) {
+      return;
+    }
+    if (!hasArabicText(host.textContent)) {
+      cleanPreparedElement(anchor);
+      return;
+    }
+    if (inlineElements.has(anchor)) {
+      applyInlineFont(anchor);
+      preparedElements.add(anchor);
+      return;
+    }
+    if (preparedElements.has(anchor) && anchor.hasAttribute(READY_ATTRIBUTE)) return;
+    const originalFont = cleanOriginalFontFamily(getComputedStyle(host).fontFamily);
+    anchor.style.setProperty(ORIGINAL_FONT_PROPERTY, originalFont);
+    anchor.setAttribute(READY_ATTRIBUTE, "");
+    preparedElements.add(anchor);
+  }
+
   function syncElement(element) {
     if (!activeSelective || !isHTMLElement(element)) {
       cleanPreparedElement(element);
+      return;
+    }
+
+    const host = editingHost(element);
+    if (host) {
+      syncEditor(host);
       return;
     }
 
