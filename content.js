@@ -78,6 +78,9 @@
   let pendingScanRoots = new WeakSet();
   const pendingElementSync = new Set();
   let preparedElements = new WeakSet();
+  // Elements whose host app strips foreign attributes (e.g. Notion editor
+  // leaves). They get an inline !important font instead of the marker.
+  const inlineElements = new Map();
   let inspectedElements = new WeakSet();
   let scanJobs = [];
   let scheduledWork = null;
@@ -251,9 +254,48 @@ ${scopedSelector("[contenteditable='plaintext-only']")}${editorSelectors ? `,\n$
     return directText(element);
   }
 
+  function selectiveFontValue(originalFont) {
+    return `"${FONT_FAMILY}", ${originalFont}`;
+  }
+
+  function applyInlineFont(element) {
+    const originalFont = element.style.getPropertyValue(ORIGINAL_FONT_PROPERTY)
+      || cleanOriginalFontFamily(getComputedStyle(element).fontFamily);
+    if (!inlineElements.has(element)) {
+      inlineElements.set(element, {
+        value: element.style.getPropertyValue("font-family"),
+        priority: element.style.getPropertyPriority("font-family")
+      });
+    }
+    const wanted = selectiveFontValue(originalFont);
+    if (
+      element.style.getPropertyValue("font-family") !== wanted ||
+      element.style.getPropertyPriority("font-family") !== "important"
+    ) {
+      element.style.setProperty("font-family", wanted, "important");
+    }
+  }
+
+  function restoreInlineFont(element) {
+    const backup = inlineElements.get(element);
+    if (!backup) return;
+    inlineElements.delete(element);
+    if (backup.value) {
+      element.style.setProperty("font-family", backup.value, backup.priority);
+    } else {
+      element.style.removeProperty("font-family");
+    }
+  }
+
   function cleanPreparedElement(element) {
     if (!isHTMLElement(element)) return;
     preparedElements.delete(element);
+    if (inlineElements.has(element)) {
+      restoreInlineFont(element);
+      element.style.removeProperty(ORIGINAL_FONT_PROPERTY);
+      element.removeAttribute(READY_ATTRIBUTE);
+      return;
+    }
     if (!element.hasAttribute(READY_ATTRIBUTE)) return;
     element.style.removeProperty(ORIGINAL_FONT_PROPERTY);
     element.removeAttribute(READY_ATTRIBUTE);
@@ -275,6 +317,11 @@ ${scopedSelector("[contenteditable='plaintext-only']")}${editorSelectors ? `,\n$
       return;
     }
 
+    if (inlineElements.has(element)) {
+      applyInlineFont(element);
+      preparedElements.add(element);
+      return;
+    }
     if (preparedElements.has(element)) return;
     const originalFont = cleanOriginalFontFamily(getComputedStyle(element).fontFamily);
     element.style.setProperty(ORIGINAL_FONT_PROPERTY, originalFont);
@@ -301,6 +348,16 @@ ${scopedSelector("[contenteditable='plaintext-only']")}${editorSelectors ? `,\n$
     const elements = root.querySelectorAll?.(`[${READY_ATTRIBUTE}]`) || [];
     for (const element of elements) cleanPreparedElement(element);
     if (root.nodeType === Node.ELEMENT_NODE) cleanPreparedElement(root);
+  }
+
+  function cleanupInlineElements() {
+    for (const element of [...inlineElements.keys()]) {
+      try {
+        cleanPreparedElement(element);
+      } catch (_) {
+        inlineElements.delete(element);
+      }
+    }
   }
 
   function cancelScheduledWork() {
@@ -351,6 +408,7 @@ ${scopedSelector("[contenteditable='plaintext-only']")}${editorSelectors ? `,\n$
       }
     }
 
+    cleanupInlineElements();
     styledRoots.clear();
     preparedElements = new WeakSet();
     activeCss = "";
@@ -434,10 +492,17 @@ ${scopedSelector("[contenteditable='plaintext-only']")}${editorSelectors ? `,\n$
     return job.walker?.nextNode() || null;
   }
 
+  function pruneDisconnectedInline() {
+    for (const element of inlineElements.keys()) {
+      if (!element.isConnected) inlineElements.delete(element);
+    }
+  }
+
   function processWork(deadline) {
     scheduledWork = null;
     scheduledWorkKind = null;
     let processed = 0;
+    if (inlineElements.size > 500) pruneDisconnectedInline();
 
     while (pendingElementSync.size && shouldContinue(deadline, processed)) {
       const element = pendingElementSync.values().next().value;
@@ -492,6 +557,22 @@ ${scopedSelector("[contenteditable='plaintext-only']")}${editorSelectors ? `,\n$
       if (!activeCss) return;
 
       for (const mutation of mutations) {
+        if (mutation.type === "attributes") {
+          // The host app removed Fontak's marker: switch this element to the
+          // inline fallback once instead of re-adding the attribute (which
+          // would fight the app's own DOM reconciliation forever).
+          const target = mutation.target;
+          if (
+            activeSelective &&
+            preparedElements.has(target) &&
+            !inlineElements.has(target) &&
+            !target.hasAttribute(READY_ATTRIBUTE)
+          ) {
+            applyInlineFont(target);
+          }
+          continue;
+        }
+
         if (mutation.type === "characterData") {
           queueElementForSync(mutation.target.parentElement);
           continue;
@@ -508,7 +589,10 @@ ${scopedSelector("[contenteditable='plaintext-only']")}${editorSelectors ? `,\n$
     observer.observe(root, {
       childList: true,
       subtree: true,
-      characterData: activeSelective
+      characterData: activeSelective,
+      ...(activeSelective
+        ? { attributes: true, attributeFilter: [READY_ATTRIBUTE], attributeOldValue: false }
+        : {})
     });
     rootObservers.set(root, observer);
   }
