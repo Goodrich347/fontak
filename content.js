@@ -11,7 +11,13 @@
   const READY_ATTRIBUTE = "data-pfe-font-ready";
   const SCOPE_ATTRIBUTE = "data-fontak-scope";
   const ARABIC_SCRIPT_RE = /[\u0600-\u06ff\u0750-\u077f\u0870-\u089f\u08a0-\u08ff\ufb50-\ufdff\ufe70-\ufeff\u{10e60}-\u{10e7f}\u{10ec0}-\u{10eff}\u{1ee00}-\u{1eeff}]/u;
-  const ALWAYS_EXCLUDED_SELECTOR = [
+  // Visible text that the page hides from screen readers (it ships a separate
+  // accessible label). Google Calendar renders every event-chip title like
+  // this, so it is only excluded in full mode, where it protects icon fonts.
+  // Selective mode can't hurt icons: the font only covers Arabic-script code
+  // points (unicode-range) and icon ligatures are Latin.
+  const ARIA_HIDDEN_SELECTOR = "[aria-hidden='true']";
+  const BASE_EXCLUDED_SELECTOR = [
     "script",
     "style",
     "noscript",
@@ -24,9 +30,9 @@
     "iframe",
     "object",
     "embed",
-    "[aria-hidden='true']",
     "[role='img']"
   ].join(",");
+  const ALWAYS_EXCLUDED_SELECTOR = `${BASE_EXCLUDED_SELECTOR},${ARIA_HIDDEN_SELECTOR}`;
   const CODE_EXCLUSIONS = ["code", "pre", "kbd", "samp"];
   const ICON_EXCLUSIONS = [
     ".material-icons",
@@ -97,7 +103,8 @@
   }
 
   function buildExclusionSelector(settings) {
-    const selectors = [ALWAYS_EXCLUDED_SELECTOR];
+    const selectors = [BASE_EXCLUDED_SELECTOR];
+    if (!settings?.arabicScriptOnly) selectors.push(ARIA_HIDDEN_SELECTOR);
     if (settings?.protectCode) selectors.push(...CODE_EXCLUSIONS);
     if (settings?.protectIcons) selectors.push(...ICON_EXCLUSIONS);
     return selectors.join(",");
